@@ -8,9 +8,9 @@ using namespace boost::placeholders;
 namespace vesc_driver {
 
 // Hardcoded constants (no config files needed) - CALCULATED FOR YOUR ROBOT
-static constexpr double SPEED_TO_ERPM_GAIN = 219.45;     // 14-pole motor, 25:1 gear, 10" wheels
+static constexpr double SPEED_TO_ERPM_GAIN = 13160.0;    // 14-pole motor, 25:1 gear, 10" wheels (corrected)
 static constexpr double SPEED_TO_ERPM_OFFSET = 0.0;
-static constexpr double ERPM_SPEED_LIMIT = 439.0;        // 2 m/s max safe speed
+static constexpr double ERPM_SPEED_LIMIT = 26320.0;      // 2 m/s max safe speed (corrected)
 static constexpr double MAX_ACCELERATION = 5.0;
 static constexpr double MAX_DECELERATION = 10.0;
 static constexpr double COMMAND_TIMEOUT = 0.5;
