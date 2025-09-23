@@ -21,13 +21,27 @@ include_directories(
   src  # Temporary for current header locations
 )
 
-# Create executable from existing source files
+# Create executables
 add_executable(vesc_driver_node
   src/vesc_driver_node.cpp
   src/vesc_interface.cpp
   src/vesc_packet.cpp
   src/vesc_packet_factory.cpp
   src/serial.cc
+)
+
+# Single VESC driver node
+add_executable(single_vesc_driver_node
+  src/single_vesc_driver_node.cpp
+  src/vesc_interface.cpp
+  src/vesc_packet.cpp
+  src/vesc_packet_factory.cpp
+  src/serial.cc
+)
+
+# Skid-steer controller node  
+add_executable(skid_steer_controller_node
+  src/skid_steer_controller_node.cpp
 )
 
 # Link dependencies
@@ -39,14 +53,35 @@ target_link_libraries(vesc_driver_node
   ${Boost_LIBRARIES}
 )
 
-# Install executable
-install(TARGETS vesc_driver_node
+target_link_libraries(single_vesc_driver_node
+  rclcpp::rclcpp
+  ${std_msgs_TARGETS}
+  ${Boost_LIBRARIES}
+)
+
+target_link_libraries(skid_steer_controller_node
+  rclcpp::rclcpp
+  ${geometry_msgs_TARGETS}
+  ${nav_msgs_TARGETS}
+  ${std_msgs_TARGETS}
+)
+
+# Install executables
+install(TARGETS 
+  vesc_driver_node
+  single_vesc_driver_node
+  skid_steer_controller_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
 # Install headers
 install(DIRECTORY include/
   DESTINATION include/
+)
+
+# Install launch files
+install(DIRECTORY launch/
+  DESTINATION share/${PROJECT_NAME}/launch/
 )
 
 if(BUILD_TESTING)
