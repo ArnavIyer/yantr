@@ -13,7 +13,7 @@ The `test_drive_node` sends velocity commands to your robot to:
 
 1. **VESC driver must be running**:
    ```bash
-   ros2 run vesc_driver vesc_driver_node
+   ros2 launch vesc_driver skid_steer_vesc.launch.py
    ```
 
 2. **Robot safety**:
@@ -76,8 +76,8 @@ cd src/test_vesc
 ## Troubleshooting
 
 **Robot doesn't move:**
-- Check if `vesc_driver_node` is running: `ros2 node list`
-- Check if VESC is connected: Look for connection messages in vesc_driver logs
+- Check if the VESC driver nodes are running: `ros2 node list`
+- Check if VESCs are connected: Look for connection messages in driver logs
 - Verify topics: `ros2 topic echo /cmd_vel` should show the commands being sent
 
 **Robot doesn't stop:**

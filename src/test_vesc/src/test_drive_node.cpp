@@ -245,7 +245,7 @@ int main(int argc, char** argv)
     RCLCPP_INFO(rclcpp::get_logger("main"), "  - Forward/backward motion");
     RCLCPP_INFO(rclcpp::get_logger("main"), "  - Left/right turning in place");
     RCLCPP_INFO(rclcpp::get_logger("main"), "  - Combined forward + turn motion");
-    RCLCPP_INFO(rclcpp::get_logger("main"), "Make sure BOTH vesc_driver_nodes are running and robot has clearance!");
+    RCLCPP_INFO(rclcpp::get_logger("main"), "Make sure VESC driver launch file is running and robot has clearance!");
     
     auto node = std::make_shared<TestDriveNode>();
     rclcpp::spin(node);
