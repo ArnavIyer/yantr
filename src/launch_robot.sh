@@ -103,7 +103,7 @@ sleep 1
 
 # RealSense T265
 echo -e "  Starting T265..."
-ros2 launch realsense2_camera rs_launch.py &
+ros2 launch realsense2_camera rs_launch.py enable_pose_jumping:=false &
 PIDS+=($!)
 sleep 1
 

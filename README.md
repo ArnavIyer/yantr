@@ -5,7 +5,7 @@ to run orbbec:
 ros2 launch astra_camera astra_pro.launch.xml
 ```
 
-to run t265:
+to run t265 (odometry-only mode, no loop closure):
 ```
-ros2 launch realsense2_camera rs_launch.py
+ros2 launch realsense2_camera rs_launch.py enable_pose_jumping:=false
 ```
