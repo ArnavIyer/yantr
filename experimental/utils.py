@@ -40,6 +40,12 @@ def pose_to_matrix(x, y, yaw):
                      [s,  c, y],
                      [0,  0, 1]])
 
+def matrix_to_pose(mat):
+    """Takes a 3x3 homogeneous transform and converts it to (x, y, yaw)"""
+    # if sin theta is positive, then, 0 < theta < 180. otherwise, 0 > theta > -180
+    heading = (1 if mat[0][1] < 0 else -1) * math.acos(mat[0][0])
+    return np.array([mat[0][2], mat[1][2], heading])
+
 
 def angle_wrap(rad):
     return (rad + np.pi) % (2* np.pi) - np.pi

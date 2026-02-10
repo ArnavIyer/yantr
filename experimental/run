@@ -1,9 +1,14 @@
 #!/bin/bash
-set -e  # Exit immediately if any command fails
+set -e
+
+cleanup() {
+    docker rm scanicp_run 2>/dev/null || true
+    docker rmi scanicp 2>/dev/null || true
+}
+trap cleanup EXIT
+
+# Remove leftover container from a previous interrupted run
+docker rm scanicp_run 2>/dev/null || true
 
 docker build -t scanicp .
-docker run -it --name scanicp_run -v "$(pwd):/app/output" scanicp
-
-# Clean up container and image
-docker rm scanicp_run 2>/dev/null || true
-docker rmi scanicp 2>/dev/null || true
+docker run -it --name scanicp_run -v "$(pwd):/app/output" scanicp || true

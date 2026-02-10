@@ -8,7 +8,7 @@ import math
 import numpy as np
 from collections import deque
 import pickle
-from utils import quaternion_to_euler, interpolate_pose, pose_to_matrix, rot2d, angle_wrap
+from utils import quaternion_to_euler, interpolate_pose, pose_to_matrix, rot2d, angle_wrap, matrix_to_pose
 
 # --- Tunable constants ---
 LIDAR_TIME_OFFSET_SEC = 0.0      # Shift lidar timestamps: corrected = stamp + offset
@@ -39,9 +39,9 @@ class ScanSubscriber(Node):
             't265_pose': [],
             'pose_count': 0,
         }
-
-        self.first_odom = None
-        self.first_t265_to_odom = None
+        
+        self.first_seen = False
+        self.first_robot_to_odom = None
 
         # Pose buffer: deque of (t, x, y, yaw, roll, pitch, vx, vy, wz)
         self.pose_buffer = deque(maxlen=POSE_BUFFER_SIZE)
@@ -63,29 +63,22 @@ class ScanSubscriber(Node):
         vel = msg.twist.twist.linear
         wz = msg.twist.twist.angular.z
 
-        if self.first_odom == None:
-            self.first_odom = (t, pos.x, pos.y, yaw)
-            self.first_t265_to_odom = pose_to_matrix(pos.x, pos.y, yaw)
-
+        if not self.first_seen:
+            self.first_seen = True
+            self.first_robot_to_odom = np.linalg.inv(T265_TO_ROBOT @ np.linalg.inv(pose_to_matrix(pos.x, pos.y, yaw)))
             assert abs(vel.x) < 0.02 and abs(vel.y) < 0.02 and abs(wz) < 0.02, f"First odom message has nonzero velocity, cannot establish initial pose\nvel: ({vel.x}, {vel.y}, {wz})"
             self.pose_buffer.append((t, 0.0, 0.0, 0.0, roll, pitch, vel.x, vel.y, wz))
             return
-
-        robot_heading = angle_wrap(yaw - self.first_odom[3]);
-
-        t265_pos_in_first_t265_frame = np.linalg.inv(self.first_t265_to_odom) @ np.array([pos.x, pos.y, 1])
-
-        robot_pos_in_first_t265_frame = rot2d(robot_heading) @ np.array([-T265_X, -T265_Y]) + t265_pos_in_first_t265_frame[:2]
-
-        robot_pos_in_first_robot_frame = np.array([T265_X, T265_Y]) + robot_pos_in_first_t265_frame
-
- 
+        
+        odom_to_current_robot = T265_TO_ROBOT @ np.linalg.inv(pose_to_matrix(pos.x, pos.y, yaw))
+        first_robot_to_current_robot = np.linalg.inv(odom_to_current_robot @ self.first_robot_to_odom)
+        x, y, theta = matrix_to_pose(first_robot_to_current_robot)
 
         # this velocity should be from the perspective of the robot currently, not the frame of the robot start.
         # TODO confirm that the T265 gives velocity in globalodom frame instead of robot frame
         rot_vel = rot2d(-yaw) @ np.array([vel.x, vel.y])
 
-        self.pose_buffer.append((t, robot_pos_in_first_robot_frame[0], robot_pos_in_first_robot_frame[1], robot_heading, roll, pitch, rot_vel[0], rot_vel[1], wz))
+        self.pose_buffer.append((t, x, y, theta, roll, pitch, rot_vel[0], rot_vel[1], wz))
 
         self.pose_count += 1
         self.data['pose_count'] = self.pose_count
