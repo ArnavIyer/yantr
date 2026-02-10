@@ -1,0 +1,5 @@
+#!/bin/bash
+set -e  # Exit immediately if any command fails
+
+docker build -t scanicp .
+docker run -it -v "$(pwd):/app/output" scanicp
