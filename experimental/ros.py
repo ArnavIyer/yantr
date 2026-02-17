@@ -14,6 +14,7 @@ from icp2 import icp
 # --- Tunable constants ---
 LIDAR_TIME_OFFSET_SEC = 0.0      # Shift lidar timestamps: corrected = stamp + offset
 POSE_TO_LIDAR_YAW_OFFSET = 0.0   # Rotation from T265 frame to lidar frame (radians)
+T265_LATENCY_VS_LIDAR = 0.050    # T265 odometry lags lidar by this many seconds
 
 # Sensor positions relative to base_link (meters)
 LIDAR_X = 0.30           # Lidar x in base_link frame
@@ -38,6 +39,8 @@ class ScanSubscriber(Node):
             'raw_clouds': [],
             'scan_stamps': [],
             't265_pose': [],
+            't265_angular_vel': [],
+            't265_stamps': [],
             'icp_transforms': [],
             'pose_count': 0,
         }
@@ -82,6 +85,9 @@ class ScanSubscriber(Node):
 
         self.pose_buffer.append((t, x, y, theta, roll, pitch, rot_vel[0], rot_vel[1], wz))
 
+        self.data['t265_angular_vel'].append(wz)
+        self.data['t265_stamps'].append(t)
+
         self.pose_count += 1
         self.data['pose_count'] = self.pose_count
         if self.pose_count % 200 == 0:
@@ -115,19 +121,19 @@ class ScanSubscriber(Node):
         self.data['raw_clouds'].append(raw_cloud)
 
         # fetch the realsense pose that is said to have happened at stamp_sec
-        self.data['t265_pose'].append(interpolate_pose(self.pose_buffer, stamp_sec))
+        self.data['t265_pose'].append(interpolate_pose(self.pose_buffer, stamp_sec + T265_LATENCY_VS_LIDAR))
 
         if len(self.data['raw_clouds']) == 1:
             return
-        
+
         old_cloud = np.array(self.data['raw_clouds'][-2])
         cloud = np.array(self.data['raw_clouds'][-1])
         old_ts = self.data['scan_stamps'][-2]
         ts = self.data['scan_stamps'][-1]
 
-        old_pose = interpolate_pose(self.pose_buffer, old_ts)
+        old_pose = interpolate_pose(self.pose_buffer, old_ts + T265_LATENCY_VS_LIDAR)
         old_aff = pose_to_matrix(old_pose[0], old_pose[1], old_pose[2])
-        pose = interpolate_pose(self.pose_buffer, ts)
+        pose = interpolate_pose(self.pose_buffer, ts + T265_LATENCY_VS_LIDAR)
         aff = pose_to_matrix(pose[0], pose[1], pose[2])
 
         # calculate pose in old_pose frame (instead of global frame) to get A1
