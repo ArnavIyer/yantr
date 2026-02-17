@@ -2,9 +2,20 @@ import math
 from scipy.spatial import KDTree
 import numpy as np
 
+# This function returns a transformation that transforms cloud to old cloud.
+# old_cloud and cloud can be np arrays of 2d or 3d vectors, either in x, y space or homogenous x, y, 1 space
 def icp(old_cloud, cloud):
-    oc_arr = np.array(old_cloud)
-    c_arr = np.array(cloud)
+    if not isinstance(old_cloud, np.ndarray) or not isinstance(cloud, np.ndarray):
+        raise TypeError("old_cloud and cloud must both be NumPy arrays")
+
+    if old_cloud.ndim != 2 or cloud.ndim != 2:
+        raise ValueError("old_cloud and cloud must be 2D arrays with shape (N,2) or (N,3)")
+
+    if old_cloud.shape[1] not in (2, 3) or cloud.shape[1] not in (2, 3):
+        raise ValueError("old_cloud and cloud must have point dimension 2 or 3")
+
+    oc_arr = old_cloud[:, :2] if old_cloud.shape[1] == 3 else old_cloud
+    c_arr = cloud[:, :2] if cloud.shape[1] == 3 else cloud
 
     old_centroid = np.mean(oc_arr, axis=0)
     centroid = np.mean(c_arr, axis=0)

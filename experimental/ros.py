@@ -9,6 +9,7 @@ import numpy as np
 from collections import deque
 import pickle
 from utils import quaternion_to_euler, interpolate_pose, pose_to_matrix, rot2d, angle_wrap, matrix_to_pose
+from icp2 import icp
 
 # --- Tunable constants ---
 LIDAR_TIME_OFFSET_SEC = 0.0      # Shift lidar timestamps: corrected = stamp + offset
@@ -37,6 +38,7 @@ class ScanSubscriber(Node):
             'raw_clouds': [],
             'scan_stamps': [],
             't265_pose': [],
+            'icp_transforms': [],
             'pose_count': 0,
         }
         
@@ -107,13 +109,36 @@ class ScanSubscriber(Node):
                 
                 # translate points in cloud from lidar frame to robot frame
                 # relative to base link, the lidar's frame is a 90 CW rotation and a (LIDAR_X, LIDAR_Y) translation
-                raw_cloud.append((LIDAR_FRAME @ np.array([x, y, 1]))[:2])
+                raw_cloud.append(LIDAR_FRAME @ np.array([x, y, 1]))
 
             curr_angle += msg.angle_increment
         self.data['raw_clouds'].append(raw_cloud)
 
         # fetch the realsense pose that is said to have happened at stamp_sec
         self.data['t265_pose'].append(interpolate_pose(self.pose_buffer, stamp_sec))
+
+        if len(self.data['raw_clouds']) == 1:
+            return
+        
+        old_cloud = np.array(self.data['raw_clouds'][-2])
+        cloud = np.array(self.data['raw_clouds'][-1])
+        old_ts = self.data['scan_stamps'][-2]
+        ts = self.data['scan_stamps'][-1]
+
+        old_pose = interpolate_pose(self.pose_buffer, old_ts)
+        old_aff = pose_to_matrix(old_pose[0], old_pose[1], old_pose[2])
+        pose = interpolate_pose(self.pose_buffer, ts)
+        aff = pose_to_matrix(pose[0], pose[1], pose[2])
+
+        # calculate pose in old_pose frame (instead of global frame) to get A1
+        A1 = np.linalg.inv(old_aff) @ aff
+
+        N = min(len(old_cloud), len(cloud))
+
+        # maps cloud onto old_cloud
+        T, _, _ = icp(cloud[:N, :2], old_cloud[:N, :2], init_pose=A1)
+
+        self.data['icp_transforms'].append(T)
 
         print("done processing scan")
 
