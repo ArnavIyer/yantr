@@ -1,14 +1,29 @@
 #!/bin/bash
 set -e
 
+MODE=${1:-}
+
+if [[ "$MODE" == "ros" ]]; then
+    NAME=scanicp
+    IMAGE=scanicp
+    DOCKERFILE=Dockerfile
+elif [[ "$MODE" == "slam" ]]; then
+    NAME=slam_run
+    IMAGE=slam
+    DOCKERFILE=Dockerfile.slam
+else
+    echo "Usage: $0 [ros|slam]"
+    exit 1
+fi
+
 cleanup() {
-    docker rm scanicp_run 2>/dev/null || true
-    docker rmi scanicp 2>/dev/null || true
+    docker rm "$NAME" 2>/dev/null || true
+    docker rmi "$IMAGE" 2>/dev/null || true
 }
 trap cleanup EXIT
 
 # Remove leftover container from a previous interrupted run
-docker rm scanicp_run 2>/dev/null || true
+docker rm "$NAME" 2>/dev/null || true
 
-docker build -t scanicp .
-docker run -it --name scanicp_run -v "$(pwd):/app/output" scanicp || true
+docker build -t "$IMAGE" -f "$DOCKERFILE" .
+docker run -it --name "$NAME" -v "$(pwd):/app/output" "$IMAGE" || true

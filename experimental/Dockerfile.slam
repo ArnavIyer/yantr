@@ -1,0 +1,16 @@
+FROM ros:humble-ros-base
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    python3-pip \
+    python3-scipy \
+    ros-humble-slam-toolbox \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY rosbag2_2026_01_23-21_02_43 /app/bags/rosbag2_2026_01_23-21_02_43
+COPY rosbag2_2026_01_23-21_01_26 /app/bags/rosbag2_2026_01_23-21_01_26
+COPY slam.py /app/slam.py
+COPY utils.py /app/utils.py
+
+CMD ["/bin/bash", "-c", "source /opt/ros/humble/setup.bash && python3 /app/slam.py"]
