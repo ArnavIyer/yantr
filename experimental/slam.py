@@ -92,25 +92,14 @@ class SlamBridgeNode(Node):
         filtered.scan_time = msg.scan_time
         filtered.range_min = msg.range_min
         filtered.range_max = msg.range_max
-        filtered.intensities = list(msg.intensities)
 
         ranges = list(msg.ranges)
-        n_filtered = 0
         angle = msg.angle_min
         for i in range(len(ranges)):
             if angle_wrap(angle) < OCCLUDE_BELOW_RAD:
                 ranges[i] = float('inf')
-                n_filtered += 1
             angle += msg.angle_increment
         filtered.ranges = ranges
-
-        if not hasattr(self, '_scan_logged'):
-            self._scan_logged = True
-            self.get_logger().info(
-                f'scan_callback first call: angle_min={msg.angle_min:.3f} '
-                f'angle_max={msg.angle_max:.3f} num_ranges={len(ranges)} '
-                f'n_filtered={n_filtered} OCCLUDE_BELOW_RAD={OCCLUDE_BELOW_RAD:.3f}'
-            )
 
         self.scan_pub.publish(filtered)
 

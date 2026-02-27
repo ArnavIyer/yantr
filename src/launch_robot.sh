@@ -89,6 +89,8 @@ echo -e "${GREEN}  ✓ Environment sourced${NC}"
 # --- Launch Nodes ---
 echo -e "${YELLOW}Launching nodes...${NC}"
 
+SLAM_PARAMS_FILE="/home/arnav/yantr/src/slam/config/slam_params.yaml"
+
 # LiDAR (LD19)
 echo -e "  Starting LiDAR..."
 ros2 launch ldlidar_stl_ros2 ld19.launch.py &
@@ -104,6 +106,18 @@ sleep 1
 # RealSense T265
 echo -e "  Starting T265..."
 ros2 launch realsense2_camera rs_launch.py enable_pose_jumping:=false &
+PIDS+=($!)
+sleep 1
+
+# SLAM bridge (publishes calibrated base_link->base_laser static TF, odom TF, and /scan_filtered)
+echo -e "  Starting SLAM bridge..."
+ros2 run slam slam_bridge_node &
+PIDS+=($!)
+sleep 1
+
+# SLAM toolbox mapping node (consumes /scan_filtered and publishes map + map->odom TF)
+echo -e "  Starting SLAM toolbox..."
+ros2 run slam_toolbox sync_slam_toolbox_node --ros-args --params-file "$SLAM_PARAMS_FILE" &
 PIDS+=($!)
 sleep 1
 
