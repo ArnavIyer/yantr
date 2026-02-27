@@ -11,8 +11,12 @@ elif [[ "$MODE" == "slam" ]]; then
     NAME=slam_run
     IMAGE=slam
     DOCKERFILE=Dockerfile.slam
+elif [[ "$MODE" == "mapvis" ]]; then
+    NAME=mapvis_run
+    IMAGE=mapvis
+    DOCKERFILE=Dockerfile.mapvis
 else
-    echo "Usage: $0 [ros|slam]"
+    echo "Usage: $0 [ros|slam|mapvis]"
     exit 1
 fi
 
@@ -26,4 +30,9 @@ trap cleanup EXIT
 docker rm "$NAME" 2>/dev/null || true
 
 docker build -t "$IMAGE" -f "$DOCKERFILE" .
-docker run -it --name "$NAME" -v "$(pwd):/app/output" "$IMAGE" || true
+if [[ "$MODE" == "mapvis" ]]; then
+    mkdir -p "$(pwd)/map_vis"
+    docker run -it --name "$NAME" -v "$(pwd)/map_vis:/app/output/map_vis" "$IMAGE" || true
+else
+    docker run -it --name "$NAME" -v "$(pwd):/app/output" "$IMAGE" || true
+fi
