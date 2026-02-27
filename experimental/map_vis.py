@@ -1,3 +1,4 @@
+import argparse
 import os
 import time
 import subprocess
@@ -9,9 +10,8 @@ from nav_msgs.msg import OccupancyGrid
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 
-BAG_PATH = "/app/bags/slam_map_bag_20260226_211739"
 OUTPUT_DIR = "/app/output/map_vis"
-SAVE_PERIOD_SEC = 2.0
+SAVE_PERIOD_SEC = 5.0
 
 
 class MapVisualizer(Node):
@@ -64,17 +64,21 @@ class MapVisualizer(Node):
         rclpy.shutdown()
 
 
-def main(args=None):
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("bag_path", help="Path to the ROS2 bag directory")
+    cli_args = parser.parse_args()
+
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     bag_proc = subprocess.Popen([
         "ros2",
         "bag",
         "play",
-        BAG_PATH,
+        cli_args.bag_path,
     ])
 
-    rclpy.init(args=args)
+    rclpy.init()
     node = MapVisualizer(bag_proc)
 
     try:

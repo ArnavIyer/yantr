@@ -9,7 +9,6 @@ RUN apt-get update && apt-get install -y \
     ros-humble-rosbag2 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY slam_map_bag_20260226_211739 /app/bags/slam_map_bag_20260226_211739
 COPY map_vis.py /app/map_vis.py
 
-CMD ["/bin/bash", "-c", "source /opt/ros/humble/setup.bash && python3 /app/map_vis.py"]
+ENTRYPOINT ["/bin/bash", "-c", "source /opt/ros/humble/setup.bash && exec python3 /app/map_vis.py \"$@\"", "--"]

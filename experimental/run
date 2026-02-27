@@ -16,7 +16,7 @@ elif [[ "$MODE" == "mapvis" ]]; then
     IMAGE=mapvis
     DOCKERFILE=Dockerfile.mapvis
 else
-    echo "Usage: $0 [ros|slam|mapvis]"
+    echo "Usage: $0 [ros|slam|mapvis <bag_path>]"
     exit 1
 fi
 
@@ -31,8 +31,13 @@ docker rm "$NAME" 2>/dev/null || true
 
 docker build -t "$IMAGE" -f "$DOCKERFILE" .
 if [[ "$MODE" == "mapvis" ]]; then
+    BAG_HOST=$(realpath "${2:?Usage: $0 mapvis <bag_path>}")
+    BAG_NAME=$(basename "$BAG_HOST")
     mkdir -p "$(pwd)/map_vis"
-    docker run -it --name "$NAME" -v "$(pwd)/map_vis:/app/output/map_vis" "$IMAGE" || true
+    docker run -it --name "$NAME" \
+        -v "$BAG_HOST:/app/bags/$BAG_NAME" \
+        -v "$(pwd)/map_vis:/app/output/map_vis" \
+        "$IMAGE" "/app/bags/$BAG_NAME" || true
 else
     docker run -it --name "$NAME" -v "$(pwd):/app/output" "$IMAGE" || true
 fi
