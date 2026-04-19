@@ -88,6 +88,8 @@ JoystickNode::JoystickNode()
 
   last_input_time_ = std::chrono::steady_clock::now();
 
+  RCLCPP_INFO(this->get_logger(), "  Max linear acceleration: %f m/s²", MAX_LINEAR_ACCELERATION);
+  RCLCPP_INFO(this->get_logger(), "  Max angular acceleration: %f rad/s²", MAX_ANGULAR_ACCELERATION);
   RCLCPP_INFO(this->get_logger(), "Joystick node ready. Press button 7 to enable control.");
 }
 
@@ -104,36 +106,28 @@ void JoystickNode::timer_callback()
   if (!joystick_->is_open()) {
     RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
                          "Joystick disconnected, sending zero velocities");
-    
-    // Send zero velocities
-    auto left_msg = std_msgs::msg::Float64();
-    auto right_msg = std_msgs::msg::Float64();
-    left_msg.data = 0.0;
-    right_msg.data = 0.0;
-    left_vesc_pub_->publish(left_msg);
-    right_vesc_pub_->publish(right_msg);
-    return;
-  }
-
-  // Check safety button (button 7)
-  bool safety_button_pressed = (joystick_->get_num_buttons() > 7) && 
-                               (joystick_->get_button(7) > 0);
-  
-  // Update safety state and last input time
-  if (safety_button_pressed || events > 0) {
-    last_input_time_ = std::chrono::steady_clock::now();
-  }
-  
-  safety_enabled_ = safety_button_pressed;
-  
-  // Check for safety timeout
-  if (!check_safety_timeout()) {
     safety_enabled_ = false;
+  } else {
+    // Check safety button (button 7)
+    bool safety_button_pressed = (joystick_->get_num_buttons() > 7) &&
+                                 (joystick_->get_button(7) > 0);
+
+    // Update safety state and last input time
+    if (safety_button_pressed || events > 0) {
+      last_input_time_ = std::chrono::steady_clock::now();
+    }
+
+    safety_enabled_ = safety_button_pressed;
+
+    // Check for safety timeout
+    if (!check_safety_timeout()) {
+      safety_enabled_ = false;
+    }
   }
 
-  // Prepare velocity commands
-  double left_velocity = 0.0;
-  double right_velocity = 0.0;
+  // Compute velocities — when safety is off, stop immediately (no ramping)
+  double linear_vel = 0.0;
+  double angular_vel = 0.0;
 
   if (safety_enabled_) {
     // Get joystick axis values (normalized to [-1.0, 1.0])
@@ -144,20 +138,26 @@ void JoystickNode::timer_callback()
     apply_deadband(raw_linear, deadband_threshold_);
     apply_deadband(raw_angular, deadband_threshold_);
 
-    // Scale to maximum velocities
-    double linear_vel = raw_linear * max_linear_velocity_;
-    double angular_vel = raw_angular * max_angular_velocity_;
+    // Scale to maximum velocities and apply acceleration limiting
+    double target_linear = raw_linear * max_linear_velocity_;
+    double target_angular = raw_angular * max_angular_velocity_;
 
-    // Apply differential drive kinematics
-    double half_track = wheel_track_ / 2.0;
-    left_velocity = linear_vel - (angular_vel * half_track);
-    right_velocity = linear_vel + (angular_vel * half_track);
+    constexpr double dt = 0.02;  // 20ms timer period
+    linear_vel = apply_acceleration_limit(target_linear, last_linear_velocity_, dt, MAX_LINEAR_ACCELERATION);
+    angular_vel = apply_acceleration_limit(target_angular, last_angular_velocity_, dt, MAX_ANGULAR_ACCELERATION);
+  }
+  last_linear_velocity_ = linear_vel;
+  last_angular_velocity_ = angular_vel;
 
-    if (std::abs(raw_linear) > deadband_threshold_ || std::abs(raw_angular) > deadband_threshold_) {
-      RCLCPP_DEBUG(this->get_logger(), 
-                   "Joy input: linear=%.3f, angular=%.3f -> left_vel=%.3f, right_vel=%.3f",
-                   linear_vel, angular_vel, left_velocity, right_velocity);
-    }
+  // Apply differential drive kinematics after rate limiting
+  double half_track = wheel_track_ / 2.0;
+  double left_velocity = linear_vel - (angular_vel * half_track);
+  double right_velocity = linear_vel + (angular_vel * half_track);
+
+  if (safety_enabled_ && (std::abs(linear_vel) > 0.0 || std::abs(angular_vel) > 0.0)) {
+    RCLCPP_DEBUG(this->get_logger(),
+                 "Joy input: linear=%.3f, angular=%.3f -> left_vel=%.3f, right_vel=%.3f",
+                 linear_vel, angular_vel, left_velocity, right_velocity);
   }
 
   // Publish velocity commands
@@ -208,6 +208,12 @@ bool JoystickNode::check_safety_timeout() const
   auto now = std::chrono::steady_clock::now();
   auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_input_time_);
   return elapsed.count() < safety_timeout_ms_;
+}
+
+double JoystickNode::apply_acceleration_limit(double target, double current, double dt, double max_accel) const
+{
+  double max_delta = max_accel * dt;
+  return current + std::clamp(target - current, -max_delta, max_delta);
 }
 
 }  // namespace joystick

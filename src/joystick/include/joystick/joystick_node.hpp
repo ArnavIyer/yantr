@@ -41,6 +41,7 @@ private:
   void timer_callback();
   void apply_deadband(double & value, double threshold) const;
   bool check_safety_timeout() const;
+  double apply_acceleration_limit(double target, double current, double dt, double max_accel) const;
   
   // ROS2 components
   rclcpp::TimerBase::SharedPtr timer_;
@@ -60,6 +61,12 @@ private:
   bool publish_debug_;
   int safety_timeout_ms_;
   
+  // Acceleration limiting
+  static constexpr double MAX_LINEAR_ACCELERATION = 2.0;   // m/s²
+  static constexpr double MAX_ANGULAR_ACCELERATION = 4.0;  // rad/s²
+  double last_linear_velocity_ = 0.0;
+  double last_angular_velocity_ = 0.0;
+
   // Safety and state tracking
   std::chrono::steady_clock::time_point last_input_time_;
   bool safety_enabled_;
