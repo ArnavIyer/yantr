@@ -22,9 +22,9 @@
   <xacro:property name="t265_pose_x" value="0.325974595"/>
   <xacro:property name="t265_pose_y" value="-0.1154934761"/>
   <xacro:property name="t265_pose_z" value="0.2629087231"/>
-  <xacro:property name="t265_pose_roll" value="0.0056539913"/>
-  <xacro:property name="t265_pose_pitch" value="-0.0553272320"/>
-  <xacro:property name="t265_pose_yaw" value="-0.0372619985"/>
+  <xacro:property name="t265_pose_roll" value="0"/>
+  <xacro:property name="t265_pose_pitch" value="0"/>
+  <xacro:property name="t265_pose_yaw" value="0"/>
 
   <link name="base_link">
     <visual>
