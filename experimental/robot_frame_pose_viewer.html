@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Robot Frame Pose Viewer</title>
+  <title>Robot Sensor Frame Pose Viewer</title>
   <style>
     :root {
       color-scheme: dark;
@@ -157,7 +157,7 @@
 </head>
 <body>
   <aside>
-    <h1>Robot Frame Pose Viewer</h1>
+    <h1>Robot Sensor Frame Pose Viewer</h1>
 
     <h2>URDF Source</h2>
     <dl>
@@ -176,6 +176,20 @@
     <dl>
       <dt>xyz</dt><dd>[-0.249836, 0.025097, 1.174719] m</dd>
       <dt>rpy</dt><dd>[-0.020389, 0.290522, -0.032712] rad</dd>
+    </dl>
+
+    <h2>t265_pose_frame</h2>
+    <dl>
+      <dt>xyz</dt><dd>[0.325975, -0.115493, 0.262909] m</dd>
+      <dt>rpy</dt><dd>[0.005654, -0.055327, -0.037262] rad</dd>
+      <dt>alias</dt><dd>tf_launch_ns/pose_frame</dd>
+    </dl>
+
+    <h2>base_link Footprint</h2>
+    <dl>
+      <dt>size</dt><dd>25in x 19in</dd>
+      <dt>x span</dt><dd>[-0.3175, 0.3175] m</dd>
+      <dt>y span</dt><dd>[-0.2413, 0.2413] m</dd>
     </dl>
 
     <h2>Orbbec Color TF</h2>
@@ -223,8 +237,17 @@
         xyz: [-0.24983559, 0.02509694, 1.17471883],
         rpy: [-0.02038875, 0.29052212, -0.03271153]
       },
+      t265_pose_frame: {
+        xyz: [0.325974595, -0.1154934761, 0.2629087231],
+        rpy: [0.0056539913, -0.0553272320, -0.0372619985]
+      },
       camera_color_frame: { xyz: [0, 0, 0], rpy: [0, 0, 0] },
       camera_color_optical_frame: { xyz: [0, 0, 0], rpy: [-Math.PI / 2, 0, -Math.PI / 2] }
+    };
+
+    const baseFootprint = {
+      xSize: 25 * 0.0254,
+      ySize: 19 * 0.0254
     };
 
     const colors = {
@@ -234,6 +257,7 @@
       base: 0x8d99a6,
       camera: 0xe7edf3,
       optical: 0x5ec8ff,
+      t265: 0xff9f43,
       laser: 0xf0c95a,
       grid: 0x34404a,
       line: 0xffffff
@@ -251,7 +275,7 @@
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
-    controls.target.set(0, 0.55, -0.05);
+    controls.target.set(0, 0.42, -0.05);
 
     scene.add(new THREE.HemisphereLight(0xffffff, 0x2a3440, 1.75));
     const keyLight = new THREE.DirectionalLight(0xffffff, 1.9);
@@ -276,12 +300,14 @@
     const cameraFrame = new THREE.Group();
     const cameraColorFrame = new THREE.Group();
     const cameraOpticalFrame = new THREE.Group();
+    const t265Frame = new THREE.Group();
     baseFrame.name = "base_link";
     laserFrame.name = "base_laser";
     cameraFrame.name = "camera_link";
     cameraColorFrame.name = "camera_color_frame";
     cameraOpticalFrame.name = "camera_color_optical_frame";
-    scene.add(baseFrame, laserFrame, cameraFrame);
+    t265Frame.name = "t265_pose_frame";
+    scene.add(baseFrame, laserFrame, cameraFrame, t265Frame);
     cameraFrame.add(cameraColorFrame);
     cameraColorFrame.add(cameraOpticalFrame);
 
@@ -290,23 +316,28 @@
     cameraFrame.matrixAutoUpdate = false;
     cameraColorFrame.matrixAutoUpdate = false;
     cameraOpticalFrame.matrixAutoUpdate = false;
+    t265Frame.matrixAutoUpdate = false;
     baseFrame.matrix.copy(displayPoseMatrix(urdfFrames.base_link));
     laserFrame.matrix.copy(displayPoseMatrix(urdfFrames.base_laser));
     cameraFrame.matrix.copy(displayPoseMatrix(urdfFrames.camera_link));
     cameraColorFrame.matrix.copy(displayPoseMatrix(urdfFrames.camera_color_frame));
     cameraOpticalFrame.matrix.copy(displayPoseMatrix(urdfFrames.camera_color_optical_frame));
+    t265Frame.matrix.copy(displayPoseMatrix(urdfFrames.t265_pose_frame));
 
-    addRobotBaseModel(baseFrame);
+    addBaseFootprint(baseFrame);
     addLidarModel(laserFrame, 0.075);
     addCameraModel(cameraFrame, 0.09);
+    addT265Model(t265Frame, 0.085);
     addCoordinateFrame(baseFrame, 0.32, "base_link");
     addCoordinateFrame(laserFrame, 0.22, "base_laser");
     addCoordinateFrame(cameraFrame, 0.24, "camera_link");
     addCoordinateFrame(cameraColorFrame, 0.16, "camera_color_frame");
     addCoordinateFrame(cameraOpticalFrame, 0.19, "camera_color_optical_frame", "#5ec8ff");
+    addCoordinateFrame(t265Frame, 0.2, "t265_pose_frame", "#ff9f43");
     addOpticalFrustum(cameraOpticalFrame, 0.12);
     addTransformLine(urdfFrames.base_laser, colors.laser);
     addTransformLine(urdfFrames.camera_link, colors.camera);
+    addTransformLine(urdfFrames.t265_pose_frame, colors.t265);
 
     setView("oblique");
 
@@ -377,22 +408,27 @@
       parent.add(makeLabel(label, direction.clone().multiplyScalar(length * 1.15), "#" + color.toString(16).padStart(6, "0"), 0.11));
     }
 
-    function addRobotBaseModel(parent) {
-      const body = new THREE.Mesh(
-        new THREE.BoxGeometry(0.5, 0.1, 0.7),
-        new THREE.MeshStandardMaterial({ color: colors.base, roughness: 0.68, metalness: 0.05 })
+    function addBaseFootprint(parent) {
+      const plane = new THREE.Mesh(
+        new THREE.PlaneGeometry(baseFootprint.ySize, baseFootprint.xSize),
+        new THREE.MeshStandardMaterial({
+          color: colors.base,
+          roughness: 0.72,
+          metalness: 0.02,
+          transparent: true,
+          opacity: 0.42,
+          side: THREE.DoubleSide
+        })
       );
-      body.position.copy(rosVectorToThree(new THREE.Vector3(0, 0, 0.05)));
-      parent.add(body);
+      plane.rotation.x = -Math.PI / 2;
+      parent.add(plane);
 
-      const nose = new THREE.Mesh(
-        new THREE.ConeGeometry(0.055, 0.16, 3),
-        new THREE.MeshStandardMaterial({ color: 0x5ed39e, roughness: 0.55 })
+      const outline = new THREE.LineSegments(
+        new THREE.EdgesGeometry(plane.geometry),
+        new THREE.LineBasicMaterial({ color: colors.base, transparent: true, opacity: 0.85 })
       );
-      nose.position.copy(rosVectorToThree(new THREE.Vector3(0.43, 0, 0.075)));
-      nose.rotation.x = Math.PI / 2;
-      nose.rotation.z = Math.PI / 6;
-      parent.add(nose);
+      outline.rotation.copy(plane.rotation);
+      parent.add(outline);
     }
 
     function addLidarModel(parent, radius) {
@@ -437,6 +473,35 @@
         new THREE.Vector3(-size * 0.9, size * 0.58, -size * 1.7), new THREE.Vector3(-size * 0.9, -size * 0.58, -size * 1.7)
       ]);
       parent.add(new THREE.LineSegments(frustum, new THREE.LineBasicMaterial({ color: colors.camera, transparent: true, opacity: 0.52 })));
+    }
+
+    function addT265Model(parent, size) {
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(size * 1.7, size * 0.68, size * 0.46),
+        new THREE.MeshStandardMaterial({ color: colors.t265, roughness: 0.64, metalness: 0.08 })
+      );
+      parent.add(body);
+
+      [-0.38, 0.38].forEach((offset) => {
+        const lens = new THREE.Mesh(
+          new THREE.CylinderGeometry(size * 0.13, size * 0.13, size * 0.08, 28),
+          new THREE.MeshStandardMaterial({ color: 0x15191f, roughness: 0.48 })
+        );
+        lens.rotation.x = Math.PI / 2;
+        lens.position.set(size * offset, 0, -size * 0.27);
+        parent.add(lens);
+      });
+
+      const frustum = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-size * 0.42, 0, -size * 0.27), new THREE.Vector3(-size * 0.9, -size * 0.34, -size * 1.35),
+        new THREE.Vector3(-size * 0.42, 0, -size * 0.27), new THREE.Vector3(-size * 0.08, size * 0.34, -size * 1.35),
+        new THREE.Vector3(size * 0.42, 0, -size * 0.27), new THREE.Vector3(size * 0.08, -size * 0.34, -size * 1.35),
+        new THREE.Vector3(size * 0.42, 0, -size * 0.27), new THREE.Vector3(size * 0.9, size * 0.34, -size * 1.35)
+      ]);
+      parent.add(new THREE.LineSegments(
+        frustum,
+        new THREE.LineBasicMaterial({ color: colors.t265, transparent: true, opacity: 0.56 })
+      ));
     }
 
     function addOpticalFrustum(parent, size) {
@@ -520,10 +585,10 @@
     }
 
     function setView(name) {
-      const target = new THREE.Vector3(0, 0.55, -0.05);
+      const target = new THREE.Vector3(0, 0.42, -0.05);
 
       if (name === "front") {
-        camera.position.set(0, 0.72, -2.25);
+        camera.position.set(0, 0.76, -2.35);
       } else if (name === "top") {
         camera.position.set(0, 2.45, -0.05);
       } else if (name === "side") {

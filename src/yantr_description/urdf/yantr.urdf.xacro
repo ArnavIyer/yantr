@@ -19,6 +19,12 @@
   <xacro:property name="camera_roll" value="-0.02038875"/>
   <xacro:property name="camera_pitch" value="0.29052212"/>
   <xacro:property name="camera_yaw" value="-0.03271153"/>
+  <xacro:property name="t265_pose_x" value="0.325974595"/>
+  <xacro:property name="t265_pose_y" value="-0.1154934761"/>
+  <xacro:property name="t265_pose_z" value="0.2629087231"/>
+  <xacro:property name="t265_pose_roll" value="0.0056539913"/>
+  <xacro:property name="t265_pose_pitch" value="-0.0553272320"/>
+  <xacro:property name="t265_pose_yaw" value="-0.0372619985"/>
 
   <link name="base_link">
     <visual>
@@ -59,16 +65,20 @@
 
   <link name="camera_link"/>
 
-  <!--
-    TODO: Add t265_link once the T265 pose is recalibrated relative to the new
-    base_link origin. The old slam_bridge t265_x / t265_y values are stale.
+  <joint name="base_t265_pose_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="t265_pose_frame"/>
+    <origin xyz="${t265_pose_x} ${t265_pose_y} ${t265_pose_z}"
+            rpy="${t265_pose_roll} ${t265_pose_pitch} ${t265_pose_yaw}"/>
+  </joint>
 
-    <joint name="t265_joint" type="fixed">
-      <parent link="base_link"/>
-      <child link="t265_link"/>
-      <origin xyz="TODO_X TODO_Y TODO_Z" rpy="TODO_ROLL TODO_PITCH TODO_YAW"/>
-    </joint>
+  <link name="t265_pose_frame"/>
 
-    <link name="t265_link"/>
-  -->
+  <joint name="t265_pose_frame_alias_joint" type="fixed">
+    <parent link="t265_pose_frame"/>
+    <child link="tf_launch_ns/pose_frame"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <link name="tf_launch_ns/pose_frame"/>
 </robot>

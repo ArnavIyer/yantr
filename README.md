@@ -7,7 +7,7 @@ ros2 launch astra_camera astra_pro.launch.xml color_fps:=30 depth_fps:=30
 
 to run t265 (odometry-only mode, no loop closure):
 ```
-ros2 launch realsense2_camera rs_launch.py enable_pose_jumping:=false
+ros2 launch realsense2_camera rs_launch.py enable_pose_jumping:=false odom_tf:=odom publish_odom_tf:=false
 ```
 
 to run lidar:
@@ -25,7 +25,7 @@ to run foxglove bridge:
 ros2 run foxglove_bridge foxglove_bridge
 ```
 
-to run slam bridge (necessary for slam toolbox; publishes odom -> base_link and /scan_filtered):
+to run slam bridge (necessary for slam toolbox; publishes odom -> base_link from T265 odometry and /scan_filtered):
 ```
 ros2 run slam slam_bridge_node
 ```

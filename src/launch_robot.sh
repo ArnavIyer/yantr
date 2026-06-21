@@ -111,11 +111,11 @@ sleep 1
 
 # RealSense T265
 echo -e "  Starting T265..."
-ros2 launch realsense2_camera rs_launch.py enable_pose_jumping:=false &
+ros2 launch realsense2_camera rs_launch.py enable_pose_jumping:=false odom_tf:=odom publish_odom_tf:=false &
 PIDS+=($!)
 sleep 1
 
-# SLAM bridge (publishes odom TF and /scan_filtered; fixed sensor TFs come from the URDF)
+# SLAM bridge (publishes odom -> base_link and /scan_filtered; fixed sensor TFs come from the URDF)
 echo -e "  Starting SLAM bridge..."
 ros2 run slam slam_bridge_node --ros-args -p publish_laser_tf:=false &
 PIDS+=($!)
