@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Robot Frame Pose Viewer</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101316;
+      --panel: #1a2026;
+      --text: #e7edf3;
+      --muted: #aab5c0;
+      --line: #303943;
+      --x: #ff4d4d;
+      --y: #43d17a;
+      --z: #4d8dff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(300px, 390px) minmax(0, 1fr);
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    aside {
+      border-right: 1px solid var(--line);
+      background: var(--panel);
+      padding: 18px;
+      overflow: auto;
+    }
+
+    main {
+      position: relative;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    h1 {
+      margin: 0 0 14px;
+      font-size: 18px;
+      font-weight: 650;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin: 22px 0 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    dl {
+      display: grid;
+      grid-template-columns: 115px 1fr;
+      gap: 7px 12px;
+      margin: 0;
+    }
+
+    dt {
+      color: var(--muted);
+    }
+
+    dd {
+      margin: 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      overflow-wrap: anywhere;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: .95em;
+    }
+
+    .legend {
+      display: grid;
+      gap: 9px;
+      margin-top: 10px;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .swatch {
+      width: 16px;
+      height: 3px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
+    .note {
+      color: var(--muted);
+      margin: 12px 0 0;
+    }
+
+    .controls {
+      position: absolute;
+      left: 16px;
+      bottom: 16px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      z-index: 2;
+    }
+
+    button {
+      appearance: none;
+      border: 1px solid #3a4652;
+      background: #202832;
+      color: var(--text);
+      border-radius: 6px;
+      min-height: 34px;
+      padding: 0 12px;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #27313c;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    @media (max-width: 760px) {
+      body {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto minmax(560px, 1fr);
+      }
+
+      aside {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      main {
+        min-height: 560px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <aside>
+    <h1>Robot Frame Pose Viewer</h1>
+
+    <h2>URDF Source</h2>
+    <dl>
+      <dt>package</dt><dd>yantr_description</dd>
+      <dt>file</dt><dd>urdf/yantr.urdf.xacro</dd>
+      <dt>parent</dt><dd>base_link</dd>
+    </dl>
+
+    <h2>base_laser</h2>
+    <dl>
+      <dt>xyz</dt><dd>[0.2725, -0.2587, 0.3480] m</dd>
+      <dt>rpy</dt><dd>[0, 0, -1.570796] rad</dd>
+    </dl>
+
+    <h2>camera_link</h2>
+    <dl>
+      <dt>xyz</dt><dd>[-0.249836, 0.025097, 1.174719] m</dd>
+      <dt>rpy</dt><dd>[-0.020389, 0.290522, -0.032712] rad</dd>
+    </dl>
+
+    <h2>Display Mapping</h2>
+    <p class="note">URDF/ROS frames are right-handed: <code>+X forward, +Y left, +Z up</code>. This viewer maps them into Three.js display coordinates as <code>ROS X -> Three -Z</code>, <code>ROS Y -> Three -X</code>, and <code>ROS Z -> Three +Y</code>. Frame axes keep their ROS labels and colors.</p>
+
+    <h2>Axis Colors</h2>
+    <div class="legend">
+      <span><i class="swatch" style="background: var(--x)"></i>ROS X axis</span>
+      <span><i class="swatch" style="background: var(--y)"></i>ROS Y axis</span>
+      <span><i class="swatch" style="background: var(--z)"></i>ROS Z axis</span>
+    </div>
+
+    <h2>Mouse</h2>
+    <dl>
+      <dt>drag</dt><dd>orbit</dd>
+      <dt>wheel</dt><dd>zoom</dd>
+      <dt>right drag</dt><dd>pan</dd>
+    </dl>
+  </aside>
+
+  <main id="viewport">
+    <div class="controls">
+      <button type="button" id="view-oblique">Oblique</button>
+      <button type="button" id="view-front">Robot Front</button>
+      <button type="button" id="view-top">Top</button>
+      <button type="button" id="view-side">Side</button>
+      <button type="button" id="reset">Reset</button>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script>
+    const urdfFrames = {
+      base_link: { xyz: [0, 0, 0], rpy: [0, 0, 0] },
+      base_laser: { xyz: [0.2725, -0.2587, 0.348], rpy: [0, 0, -1.5707963267948966] },
+      camera_link: {
+        xyz: [-0.24983559, 0.02509694, 1.17471883],
+        rpy: [-0.02038875, 0.29052212, -0.03271153]
+      }
+    };
+
+    const colors = {
+      x: 0xff4d4d,
+      y: 0x43d17a,
+      z: 0x4d8dff,
+      base: 0x8d99a6,
+      camera: 0xe7edf3,
+      laser: 0xf0c95a,
+      grid: 0x34404a,
+      line: 0xffffff
+    };
+
+    const viewport = document.getElementById("viewport");
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x101316);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    viewport.appendChild(renderer.domElement);
+
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 40);
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.target.set(0, 0.55, -0.05);
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x2a3440, 1.75));
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.9);
+    keyLight.position.set(1.8, 2.8, 2.6);
+    scene.add(keyLight);
+
+    const rosToThree = new THREE.Matrix4().set(
+      0, -1, 0, 0,
+      0, 0, 1, 0,
+      -1, 0, 0, 0,
+      0, 0, 0, 1
+    );
+    const threeToRos = rosToThree.clone().invert();
+
+    const grid = new THREE.GridHelper(1.6, 16, colors.grid, colors.grid);
+    grid.material.transparent = true;
+    grid.material.opacity = 0.42;
+    scene.add(grid);
+
+    const baseFrame = new THREE.Group();
+    const laserFrame = new THREE.Group();
+    const cameraFrame = new THREE.Group();
+    baseFrame.name = "base_link";
+    laserFrame.name = "base_laser";
+    cameraFrame.name = "camera_link";
+    scene.add(baseFrame, laserFrame, cameraFrame);
+
+    baseFrame.matrixAutoUpdate = false;
+    laserFrame.matrixAutoUpdate = false;
+    cameraFrame.matrixAutoUpdate = false;
+    baseFrame.matrix.copy(displayPoseMatrix(urdfFrames.base_link));
+    laserFrame.matrix.copy(displayPoseMatrix(urdfFrames.base_laser));
+    cameraFrame.matrix.copy(displayPoseMatrix(urdfFrames.camera_link));
+
+    addRobotBaseModel(baseFrame);
+    addLidarModel(laserFrame, 0.075);
+    addCameraModel(cameraFrame, 0.09);
+    addCoordinateFrame(baseFrame, 0.32, "base_link");
+    addCoordinateFrame(laserFrame, 0.22, "base_laser");
+    addCoordinateFrame(cameraFrame, 0.24, "camera_link");
+    addTransformLine(urdfFrames.base_laser, colors.laser);
+    addTransformLine(urdfFrames.camera_link, colors.camera);
+
+    setView("oblique");
+
+    document.getElementById("view-oblique").addEventListener("click", () => setView("oblique"));
+    document.getElementById("view-front").addEventListener("click", () => setView("front"));
+    document.getElementById("view-top").addEventListener("click", () => setView("top"));
+    document.getElementById("view-side").addEventListener("click", () => setView("side"));
+    document.getElementById("reset").addEventListener("click", () => {
+      controls.reset();
+      setView("oblique");
+    });
+
+    window.addEventListener("resize", resize);
+    resize();
+    animate();
+
+    function displayPoseMatrix(frame) {
+      return rosToThree.clone().multiply(rosPoseMatrix(frame.xyz, frame.rpy)).multiply(threeToRos);
+    }
+
+    function rosPoseMatrix(xyz, rpy) {
+      const [roll, pitch, yaw] = rpy;
+      const sr = Math.sin(roll);
+      const cr = Math.cos(roll);
+      const sp = Math.sin(pitch);
+      const cp = Math.cos(pitch);
+      const sy = Math.sin(yaw);
+      const cy = Math.cos(yaw);
+
+      const matrix = new THREE.Matrix4();
+      matrix.set(
+        cy * cp, cy * sp * sr - sy * cr, cy * sp * cr + sy * sr, xyz[0],
+        sy * cp, sy * sp * sr + cy * cr, sy * sp * cr - cy * sr, xyz[1],
+        -sp, cp * sr, cp * cr, xyz[2],
+        0, 0, 0, 1
+      );
+      return matrix;
+    }
+
+    function rosVectorToThree(vector) {
+      return new THREE.Vector3(-vector.y, vector.z, -vector.x);
+    }
+
+    function addCoordinateFrame(parent, length, label) {
+      addAxis(parent, rosVectorToThree(new THREE.Vector3(1, 0, 0)), length, colors.x, label + " X");
+      addAxis(parent, rosVectorToThree(new THREE.Vector3(0, 1, 0)), length, colors.y, label + " Y");
+      addAxis(parent, rosVectorToThree(new THREE.Vector3(0, 0, 1)), length, colors.z, label + " Z");
+      parent.add(makeLabel(label, new THREE.Vector3(0, length * 0.28, 0), "#e7edf3", 0.13));
+    }
+
+    function addAxis(parent, direction, length, color, label) {
+      const origin = new THREE.Vector3(0, 0, 0);
+      const end = direction.clone().multiplyScalar(length);
+
+      parent.add(new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([origin, end]),
+        new THREE.LineBasicMaterial({ color })
+      ));
+
+      const cone = new THREE.Mesh(
+        new THREE.ConeGeometry(length * 0.045, length * 0.16, 24),
+        new THREE.MeshStandardMaterial({ color, roughness: 0.45, metalness: 0.05 })
+      );
+      cone.position.copy(end);
+      cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.clone().normalize());
+      parent.add(cone);
+
+      parent.add(makeLabel(label, direction.clone().multiplyScalar(length * 1.15), "#" + color.toString(16).padStart(6, "0"), 0.11));
+    }
+
+    function addRobotBaseModel(parent) {
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(0.5, 0.1, 0.7),
+        new THREE.MeshStandardMaterial({ color: colors.base, roughness: 0.68, metalness: 0.05 })
+      );
+      body.position.copy(rosVectorToThree(new THREE.Vector3(0, 0, 0.05)));
+      parent.add(body);
+
+      const nose = new THREE.Mesh(
+        new THREE.ConeGeometry(0.055, 0.16, 3),
+        new THREE.MeshStandardMaterial({ color: 0x5ed39e, roughness: 0.55 })
+      );
+      nose.position.copy(rosVectorToThree(new THREE.Vector3(0.43, 0, 0.075)));
+      nose.rotation.x = Math.PI / 2;
+      nose.rotation.z = Math.PI / 6;
+      parent.add(nose);
+    }
+
+    function addLidarModel(parent, radius) {
+      const body = new THREE.Mesh(
+        new THREE.CylinderGeometry(radius, radius, 0.052, 48),
+        new THREE.MeshStandardMaterial({ color: colors.laser, roughness: 0.58, metalness: 0.08 })
+      );
+      body.position.copy(rosVectorToThree(new THREE.Vector3(0, 0, 0.026)));
+      parent.add(body);
+
+      const scan = new THREE.Mesh(
+        new THREE.RingGeometry(radius * 1.55, radius * 1.62, 96),
+        new THREE.MeshBasicMaterial({ color: colors.laser, transparent: true, opacity: 0.28, side: THREE.DoubleSide })
+      );
+      scan.rotation.x = -Math.PI / 2;
+      parent.add(scan);
+    }
+
+    function addCameraModel(parent, size) {
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(size * 1.45, size, size * 0.72),
+        new THREE.MeshStandardMaterial({ color: colors.camera, roughness: 0.7, metalness: 0.08 })
+      );
+      parent.add(body);
+
+      const lens = new THREE.Mesh(
+        new THREE.CylinderGeometry(size * 0.24, size * 0.24, size * 0.18, 32),
+        new THREE.MeshStandardMaterial({ color: 0x13181e, roughness: 0.5 })
+      );
+      lens.rotation.x = Math.PI / 2;
+      lens.position.z = -size * 0.45;
+      parent.add(lens);
+
+      const frustum = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 0, -size * 0.48), new THREE.Vector3(-size * 0.9, -size * 0.58, -size * 1.7),
+        new THREE.Vector3(0, 0, -size * 0.48), new THREE.Vector3(size * 0.9, -size * 0.58, -size * 1.7),
+        new THREE.Vector3(0, 0, -size * 0.48), new THREE.Vector3(size * 0.9, size * 0.58, -size * 1.7),
+        new THREE.Vector3(0, 0, -size * 0.48), new THREE.Vector3(-size * 0.9, size * 0.58, -size * 1.7),
+        new THREE.Vector3(-size * 0.9, -size * 0.58, -size * 1.7), new THREE.Vector3(size * 0.9, -size * 0.58, -size * 1.7),
+        new THREE.Vector3(size * 0.9, -size * 0.58, -size * 1.7), new THREE.Vector3(size * 0.9, size * 0.58, -size * 1.7),
+        new THREE.Vector3(size * 0.9, size * 0.58, -size * 1.7), new THREE.Vector3(-size * 0.9, size * 0.58, -size * 1.7),
+        new THREE.Vector3(-size * 0.9, size * 0.58, -size * 1.7), new THREE.Vector3(-size * 0.9, -size * 0.58, -size * 1.7)
+      ]);
+      parent.add(new THREE.LineSegments(frustum, new THREE.LineBasicMaterial({ color: colors.camera, transparent: true, opacity: 0.52 })));
+    }
+
+    function addTransformLine(frame, color) {
+      const endpoint = rosVectorToThree(new THREE.Vector3(frame.xyz[0], frame.xyz[1], frame.xyz[2]));
+      const geometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), endpoint]);
+      const material = new THREE.LineDashedMaterial({
+        color,
+        transparent: true,
+        opacity: 0.62,
+        dashSize: 0.035,
+        gapSize: 0.02
+      });
+      const line = new THREE.Line(geometry, material);
+      line.computeLineDistances();
+      scene.add(line);
+    }
+
+    function makeLabel(text, position, color, widthMeters) {
+      const canvas = document.createElement("canvas");
+      const scale = 3;
+      canvas.width = 320 * scale;
+      canvas.height = 72 * scale;
+      const ctx = canvas.getContext("2d");
+      ctx.scale(scale, scale);
+      ctx.font = "600 23px system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
+      ctx.textBaseline = "middle";
+      const width = Math.ceil(ctx.measureText(text).width + 26);
+      ctx.fillStyle = "rgba(16, 19, 22, 0.80)";
+      roundRect(ctx, 0, 7, Math.min(width, 316), 46, 7);
+      ctx.fill();
+      ctx.fillStyle = color;
+      ctx.fillText(text, 13, 31);
+
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.minFilter = THREE.LinearFilter;
+      const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+      const sprite = new THREE.Sprite(material);
+      sprite.position.copy(position);
+      sprite.scale.set(widthMeters, widthMeters * 0.28, 1);
+      sprite.renderOrder = 10;
+      return sprite;
+    }
+
+    function roundRect(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.arcTo(x + width, y, x + width, y + height, radius);
+      ctx.arcTo(x + width, y + height, x, y + height, radius);
+      ctx.arcTo(x, y + height, x, y, radius);
+      ctx.arcTo(x, y, x + width, y, radius);
+      ctx.closePath();
+    }
+
+    function setView(name) {
+      const target = new THREE.Vector3(0, 0.55, -0.05);
+
+      if (name === "front") {
+        camera.position.set(0, 0.72, -2.25);
+      } else if (name === "top") {
+        camera.position.set(0, 2.45, -0.05);
+      } else if (name === "side") {
+        camera.position.set(2.25, 0.85, -0.05);
+      } else {
+        camera.position.set(1.35, 1.35, 1.25);
+      }
+
+      controls.target.copy(target);
+      controls.update();
+      controls.saveState();
+    }
+
+    function resize() {
+      const width = viewport.clientWidth;
+      const height = viewport.clientHeight;
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height, false);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+  </script>
+</body>
+</html>
