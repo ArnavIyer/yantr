@@ -6,5 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "matplotlib>=3.10.8",
+    "pupil-apriltags>=1.0.4.post11",
+    "pyyaml>=6.0.3",
     "scipy>=1.17.0",
 ]

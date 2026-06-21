@@ -1,0 +1,92 @@
+{
+  "requested_time": "2026-06-20T17:21:09.588000-04:00",
+  "requested_timestamp_ns": 1781990469588000000,
+  "image": {
+    "topic": "/camera/color/image_raw",
+    "message_id": 1613,
+    "recorded_timestamp_ns": 1781990469598166050,
+    "recorded_time": "2026-06-20T17:21:09.598166-04:00",
+    "delta_from_requested_ns": 10166050,
+    "header_stamp_ns": 1781990469590997244,
+    "header_stamp": {
+      "sec": 1781990469,
+      "nanosec": 590997244
+    },
+    "frame_id": "camera_color_optical_frame",
+    "width": 640,
+    "height": 480,
+    "encoding": "rgb8",
+    "is_bigendian": 0,
+    "step": 1920,
+    "data_length": 921600,
+    "file": "rosbag2_2026_06_20-17_20_42/extracted_2026-06-20_17-21-09.588_EDT.png"
+  },
+  "camera_info": {
+    "topic": "/camera/color/camera_info",
+    "message_id": 1614,
+    "recorded_timestamp_ns": 1781990469598240571,
+    "recorded_time": "2026-06-20T17:21:09.598241-04:00",
+    "delta_from_requested_ns": 10240571,
+    "header_stamp_ns": 1781990469590997244,
+    "header_stamp": {
+      "sec": 1781990469,
+      "nanosec": 590997244
+    },
+    "frame_id": "camera_color_optical_frame",
+    "height": 480,
+    "width": 640,
+    "distortion_model": "plumb_bob",
+    "D": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "K": [
+      594.3200073242188,
+      0.0,
+      317.80999755859375,
+      0.0,
+      594.3200073242188,
+      238.6840057373047,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "R": [
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "P": [
+      594.3200073242188,
+      0.0,
+      317.80999755859375,
+      0.0,
+      0.0,
+      594.3200073242188,
+      238.6840057373047,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ],
+    "binning_x": 0,
+    "binning_y": 0,
+    "roi": {
+      "x_offset": 0,
+      "y_offset": 0,
+      "height": 0,
+      "width": 0,
+      "do_rectify": false
+    }
+  }
+}
