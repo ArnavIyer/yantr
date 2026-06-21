@@ -178,6 +178,13 @@
       <dt>rpy</dt><dd>[-0.020389, 0.290522, -0.032712] rad</dd>
     </dl>
 
+    <h2>Orbbec Color TF</h2>
+    <dl>
+      <dt>tree</dt><dd>camera_link -> camera_color_frame -> camera_color_optical_frame</dd>
+      <dt>optical rpy</dt><dd>[-pi/2, 0, -pi/2] rad</dd>
+    </dl>
+    <p class="note"><code>camera_color_optical_frame</code> uses the optical convention from the Astra driver: <code>+X right, +Y down, +Z forward</code>.</p>
+
     <h2>Display Mapping</h2>
     <p class="note">URDF/ROS frames are right-handed: <code>+X forward, +Y left, +Z up</code>. This viewer maps them into Three.js display coordinates as <code>ROS X -> Three -Z</code>, <code>ROS Y -> Three -X</code>, and <code>ROS Z -> Three +Y</code>. Frame axes keep their ROS labels and colors.</p>
 
@@ -215,7 +222,9 @@
       camera_link: {
         xyz: [-0.24983559, 0.02509694, 1.17471883],
         rpy: [-0.02038875, 0.29052212, -0.03271153]
-      }
+      },
+      camera_color_frame: { xyz: [0, 0, 0], rpy: [0, 0, 0] },
+      camera_color_optical_frame: { xyz: [0, 0, 0], rpy: [-Math.PI / 2, 0, -Math.PI / 2] }
     };
 
     const colors = {
@@ -224,6 +233,7 @@
       z: 0x4d8dff,
       base: 0x8d99a6,
       camera: 0xe7edf3,
+      optical: 0x5ec8ff,
       laser: 0xf0c95a,
       grid: 0x34404a,
       line: 0xffffff
@@ -264,17 +274,27 @@
     const baseFrame = new THREE.Group();
     const laserFrame = new THREE.Group();
     const cameraFrame = new THREE.Group();
+    const cameraColorFrame = new THREE.Group();
+    const cameraOpticalFrame = new THREE.Group();
     baseFrame.name = "base_link";
     laserFrame.name = "base_laser";
     cameraFrame.name = "camera_link";
+    cameraColorFrame.name = "camera_color_frame";
+    cameraOpticalFrame.name = "camera_color_optical_frame";
     scene.add(baseFrame, laserFrame, cameraFrame);
+    cameraFrame.add(cameraColorFrame);
+    cameraColorFrame.add(cameraOpticalFrame);
 
     baseFrame.matrixAutoUpdate = false;
     laserFrame.matrixAutoUpdate = false;
     cameraFrame.matrixAutoUpdate = false;
+    cameraColorFrame.matrixAutoUpdate = false;
+    cameraOpticalFrame.matrixAutoUpdate = false;
     baseFrame.matrix.copy(displayPoseMatrix(urdfFrames.base_link));
     laserFrame.matrix.copy(displayPoseMatrix(urdfFrames.base_laser));
     cameraFrame.matrix.copy(displayPoseMatrix(urdfFrames.camera_link));
+    cameraColorFrame.matrix.copy(displayPoseMatrix(urdfFrames.camera_color_frame));
+    cameraOpticalFrame.matrix.copy(displayPoseMatrix(urdfFrames.camera_color_optical_frame));
 
     addRobotBaseModel(baseFrame);
     addLidarModel(laserFrame, 0.075);
@@ -282,6 +302,9 @@
     addCoordinateFrame(baseFrame, 0.32, "base_link");
     addCoordinateFrame(laserFrame, 0.22, "base_laser");
     addCoordinateFrame(cameraFrame, 0.24, "camera_link");
+    addCoordinateFrame(cameraColorFrame, 0.16, "camera_color_frame");
+    addCoordinateFrame(cameraOpticalFrame, 0.19, "camera_color_optical_frame", "#5ec8ff");
+    addOpticalFrustum(cameraOpticalFrame, 0.12);
     addTransformLine(urdfFrames.base_laser, colors.laser);
     addTransformLine(urdfFrames.camera_link, colors.camera);
 
@@ -327,11 +350,11 @@
       return new THREE.Vector3(-vector.y, vector.z, -vector.x);
     }
 
-    function addCoordinateFrame(parent, length, label) {
+    function addCoordinateFrame(parent, length, label, labelColor) {
       addAxis(parent, rosVectorToThree(new THREE.Vector3(1, 0, 0)), length, colors.x, label + " X");
       addAxis(parent, rosVectorToThree(new THREE.Vector3(0, 1, 0)), length, colors.y, label + " Y");
       addAxis(parent, rosVectorToThree(new THREE.Vector3(0, 0, 1)), length, colors.z, label + " Z");
-      parent.add(makeLabel(label, new THREE.Vector3(0, length * 0.28, 0), "#e7edf3", 0.13));
+      parent.add(makeLabel(label, new THREE.Vector3(0, length * 0.28, 0), labelColor || "#e7edf3", 0.13));
     }
 
     function addAxis(parent, direction, length, color, label) {
@@ -414,6 +437,35 @@
         new THREE.Vector3(-size * 0.9, size * 0.58, -size * 1.7), new THREE.Vector3(-size * 0.9, -size * 0.58, -size * 1.7)
       ]);
       parent.add(new THREE.LineSegments(frustum, new THREE.LineBasicMaterial({ color: colors.camera, transparent: true, opacity: 0.52 })));
+    }
+
+    function addOpticalFrustum(parent, size) {
+      const forward = rosVectorToThree(new THREE.Vector3(0, 0, 1));
+      const right = rosVectorToThree(new THREE.Vector3(1, 0, 0));
+      const down = rosVectorToThree(new THREE.Vector3(0, 1, 0));
+      const center = forward.clone().multiplyScalar(size * 1.7);
+      const halfWidth = size * 0.72;
+      const halfHeight = size * 0.46;
+      const corners = [
+        center.clone().add(right.clone().multiplyScalar(-halfWidth)).add(down.clone().multiplyScalar(-halfHeight)),
+        center.clone().add(right.clone().multiplyScalar(halfWidth)).add(down.clone().multiplyScalar(-halfHeight)),
+        center.clone().add(right.clone().multiplyScalar(halfWidth)).add(down.clone().multiplyScalar(halfHeight)),
+        center.clone().add(right.clone().multiplyScalar(-halfWidth)).add(down.clone().multiplyScalar(halfHeight))
+      ];
+      const points = [
+        new THREE.Vector3(0, 0, 0), corners[0],
+        new THREE.Vector3(0, 0, 0), corners[1],
+        new THREE.Vector3(0, 0, 0), corners[2],
+        new THREE.Vector3(0, 0, 0), corners[3],
+        corners[0], corners[1],
+        corners[1], corners[2],
+        corners[2], corners[3],
+        corners[3], corners[0]
+      ];
+      parent.add(new THREE.LineSegments(
+        new THREE.BufferGeometry().setFromPoints(points),
+        new THREE.LineBasicMaterial({ color: colors.optical, transparent: true, opacity: 0.66 })
+      ));
     }
 
     function addTransformLine(frame, color) {
