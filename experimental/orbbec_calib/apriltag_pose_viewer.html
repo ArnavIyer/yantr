@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AprilTag Pose Viewer</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #111417;
+      --panel: #1b2026;
+      --text: #e7edf3;
+      --muted: #aab5c0;
+      --line: #303943;
+      --x: #ff4d4d;
+      --y: #43d17a;
+      --z: #4d8dff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    aside {
+      border-right: 1px solid var(--line);
+      background: var(--panel);
+      padding: 18px;
+      overflow: auto;
+    }
+
+    main {
+      position: relative;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    h1 {
+      margin: 0 0 14px;
+      font-size: 18px;
+      font-weight: 650;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin: 22px 0 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    dl {
+      display: grid;
+      grid-template-columns: 110px 1fr;
+      gap: 7px 12px;
+      margin: 0;
+    }
+
+    dt {
+      color: var(--muted);
+    }
+
+    dd {
+      margin: 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      overflow-wrap: anywhere;
+    }
+
+    .legend {
+      display: grid;
+      gap: 9px;
+      margin-top: 10px;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .swatch {
+      width: 16px;
+      height: 3px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
+    .note {
+      color: var(--muted);
+      margin: 12px 0 0;
+    }
+
+    .controls {
+      position: absolute;
+      left: 16px;
+      bottom: 16px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      z-index: 2;
+    }
+
+    button {
+      appearance: none;
+      border: 1px solid #3a4652;
+      background: #202832;
+      color: var(--text);
+      border-radius: 6px;
+      min-height: 34px;
+      padding: 0 12px;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #27313c;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    @media (max-width: 760px) {
+      body {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto minmax(520px, 1fr);
+      }
+
+      aside {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      main {
+        min-height: 520px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <aside>
+    <h1>AprilTag Pose Viewer</h1>
+
+    <h2>Detection</h2>
+    <dl>
+      <dt>tag_family</dt><dd>tag36h11</dd>
+      <dt>tag_id</dt><dd>0</dd>
+      <dt>pose_err</dt><dd>1.1561785958536605e-07</dd>
+      <dt>center px</dt><dd>[166.410, 391.427]</dd>
+    </dl>
+
+    <h2>Pose</h2>
+    <dl>
+      <dt>x</dt><dd>-0.162696 m</dd>
+      <dt>y</dt><dd>0.164088 m</dd>
+      <dt>z</dt><dd>0.638053 m</dd>
+      <dt>distance</dt><dd id="distance">-</dd>
+    </dl>
+    <p class="note">The detector pose is interpreted as tag-to-camera: <code>p_camera = R * p_tag + t</code>. Default display converts the OpenCV-style camera frame, <code>X right, Y down, Z forward</code>, to Three.js display coordinates, where camera-forward is local <code>-Z</code>.</p>
+
+    <h2>Axis Colors</h2>
+    <div class="legend">
+      <span><i class="swatch" style="background: var(--x)"></i>X axis</span>
+      <span><i class="swatch" style="background: var(--y)"></i>Y axis</span>
+      <span><i class="swatch" style="background: var(--z)"></i>Z axis</span>
+    </div>
+
+    <h2>Mouse</h2>
+    <dl>
+      <dt>drag</dt><dd>orbit</dd>
+      <dt>wheel</dt><dd>zoom</dd>
+      <dt>right drag</dt><dd>pan</dd>
+    </dl>
+  </aside>
+
+  <main id="viewport">
+    <div class="controls">
+      <button type="button" id="view-oblique">Oblique</button>
+      <button type="button" id="view-camera">From Camera</button>
+      <button type="button" id="view-top">Top</button>
+      <button type="button" id="toggle-convention">Show Raw CV Pose</button>
+      <button type="button" id="reset">Reset</button>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script>
+    const detection = {
+      pose_R: [
+        [0.99946597, -0.01086286, -0.03081853],
+        [0.00154041, 0.95774148, -0.28762628],
+        [0.03264063, 0.28742521, 0.95724675]
+      ],
+      pose_t: [-0.1626956, 0.1640878, 0.6380532],
+      corners: [
+        [131.50259399, 424.30609131],
+        [205.46951294, 423.43121338],
+        [201.95175171, 357.95001221],
+        [125.66249847, 358.04086304]
+      ]
+    };
+
+    const colors = {
+      x: 0xff4d4d,
+      y: 0x43d17a,
+      z: 0x4d8dff,
+      camera: 0xe7edf3,
+      tag: 0xf0c95a,
+      grid: 0x34404a
+    };
+
+    const viewport = document.getElementById("viewport");
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x111417);
+    const cvToThree = new THREE.Matrix4().set(
+      1, 0, 0, 0,
+      0, -1, 0, 0,
+      0, 0, -1, 0,
+      0, 0, 0, 1
+    );
+    let showRawCvPose = false;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    viewport.appendChild(renderer.domElement);
+
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 20);
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.target.set(0.03, 0.04, 0.32);
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x2a3440, 1.7));
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.8);
+    keyLight.position.set(1.8, 2.4, 3.2);
+    scene.add(keyLight);
+
+    const grid = new THREE.GridHelper(1.2, 12, colors.grid, colors.grid);
+    grid.rotation.x = Math.PI / 2;
+    grid.material.transparent = true;
+    grid.material.opacity = 0.42;
+    scene.add(grid);
+
+    const cameraFrame = new THREE.Group();
+    cameraFrame.name = "Camera frame";
+    scene.add(cameraFrame);
+
+    const tagFrame = new THREE.Group();
+    tagFrame.name = "AprilTag frame";
+    scene.add(tagFrame);
+
+    const cameraAxes = new THREE.Group();
+    const tagAxes = new THREE.Group();
+    cameraFrame.add(cameraAxes);
+    tagFrame.add(tagAxes);
+
+    updateCoordinateFrameAxes();
+    addCameraModel(cameraFrame, 0.075);
+    addTagSquare(tagFrame, 0.16);
+
+    const poseLine = addLine(
+      new THREE.Vector3(0, 0, 0),
+      getDisplayedTranslation(),
+      0xffffff,
+      0.55
+    );
+
+    document.getElementById("distance").textContent =
+      Math.hypot(...detection.pose_t).toFixed(6) + " m";
+
+    setView("oblique");
+
+    document.getElementById("view-oblique").addEventListener("click", () => setView("oblique"));
+    document.getElementById("view-camera").addEventListener("click", () => setView("camera"));
+    document.getElementById("view-top").addEventListener("click", () => setView("top"));
+    document.getElementById("toggle-convention").addEventListener("click", () => {
+      showRawCvPose = !showRawCvPose;
+      document.getElementById("toggle-convention").textContent =
+        showRawCvPose ? "Show Three.js Pose" : "Show Raw CV Pose";
+      updateCoordinateFrameAxes();
+      updatePoseDisplay();
+      setView("oblique");
+    });
+    document.getElementById("reset").addEventListener("click", () => {
+      controls.reset();
+      setView("oblique");
+    });
+
+    updatePoseDisplay();
+
+    window.addEventListener("resize", resize);
+    resize();
+    animate();
+
+    function makePoseMatrix(rows, translation) {
+      const matrix = new THREE.Matrix4();
+      matrix.set(
+        rows[0][0], rows[0][1], rows[0][2], translation[0],
+        rows[1][0], rows[1][1], rows[1][2], translation[1],
+        rows[2][0], rows[2][1], rows[2][2], translation[2],
+        0, 0, 0, 1
+      );
+      return matrix;
+    }
+
+    function getDisplayedPoseMatrix() {
+      const rawPose = makePoseMatrix(detection.pose_R, detection.pose_t);
+      if (showRawCvPose) {
+        return rawPose;
+      }
+      return cvToThree.clone().multiply(rawPose).multiply(cvToThree);
+    }
+
+    function getDisplayedTranslation() {
+      return new THREE.Vector3().setFromMatrixPosition(getDisplayedPoseMatrix());
+    }
+
+    function updatePoseDisplay() {
+      const matrix = getDisplayedPoseMatrix();
+      tagFrame.matrixAutoUpdate = false;
+      tagFrame.matrix.copy(matrix);
+      poseLine.geometry.dispose();
+      poseLine.geometry = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3().setFromMatrixPosition(matrix)
+      ]);
+      poseLine.computeLineDistances();
+    }
+
+    function updateCoordinateFrameAxes() {
+      clearGroup(cameraAxes);
+      clearGroup(tagAxes);
+      addCoordinateFrame(cameraAxes, 0.18, "camera", true);
+      addCoordinateFrame(tagAxes, 0.14, "tag", false);
+    }
+
+    function clearGroup(group) {
+      for (const child of [...group.children]) {
+        group.remove(child);
+        if (child.geometry) {
+          child.geometry.dispose();
+        }
+        if (child.material) {
+          if (child.material.map) {
+            child.material.map.dispose();
+          }
+          child.material.dispose();
+        }
+      }
+    }
+
+    function addCoordinateFrame(parent, length, prefix, includeOriginLabel) {
+      const isConvertedCvFrame = !showRawCvPose;
+      addAxis(parent, new THREE.Vector3(1, 0, 0), length, colors.x, prefix + " X");
+      addAxis(parent, new THREE.Vector3(0, isConvertedCvFrame ? -1 : 1, 0), length, colors.y, prefix + " Y");
+      addAxis(parent, new THREE.Vector3(0, 0, isConvertedCvFrame ? -1 : 1), length, colors.z, prefix + " Z");
+
+      if (includeOriginLabel) {
+        parent.add(makeLabel("camera", new THREE.Vector3(0, -0.055, 0), "#e7edf3"));
+      } else {
+        parent.add(makeLabel("tag", new THREE.Vector3(0, -0.052, 0), "#f0c95a"));
+      }
+    }
+
+    function addAxis(parent, direction, length, color, label) {
+      const origin = new THREE.Vector3(0, 0, 0);
+      const end = direction.clone().multiplyScalar(length);
+
+      const material = new THREE.LineBasicMaterial({ color, linewidth: 2 });
+      const geometry = new THREE.BufferGeometry().setFromPoints([origin, end]);
+      parent.add(new THREE.Line(geometry, material));
+
+      const cone = new THREE.Mesh(
+        new THREE.ConeGeometry(length * 0.045, length * 0.16, 24),
+        new THREE.MeshStandardMaterial({ color, roughness: 0.45, metalness: 0.05 })
+      );
+      cone.position.copy(direction.clone().multiplyScalar(length));
+      cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.clone().normalize());
+      parent.add(cone);
+
+      parent.add(makeLabel(label, direction.clone().multiplyScalar(length * 1.16), "#" + color.toString(16).padStart(6, "0")));
+    }
+
+    function addCameraModel(parent, size) {
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(size * 1.45, size, size * 0.72),
+        new THREE.MeshStandardMaterial({ color: colors.camera, roughness: 0.7, metalness: 0.08 })
+      );
+      parent.add(body);
+
+      const lens = new THREE.Mesh(
+        new THREE.CylinderGeometry(size * 0.24, size * 0.24, size * 0.18, 32),
+        new THREE.MeshStandardMaterial({ color: 0x13181e, roughness: 0.5 })
+      );
+      lens.rotation.x = Math.PI / 2;
+      lens.position.z = -size * 0.45;
+      parent.add(lens);
+
+      const frustum = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 0, -size * 0.48), new THREE.Vector3(-size * 0.9, -size * 0.58, -size * 1.7),
+        new THREE.Vector3(0, 0, -size * 0.48), new THREE.Vector3(size * 0.9, -size * 0.58, -size * 1.7),
+        new THREE.Vector3(0, 0, -size * 0.48), new THREE.Vector3(size * 0.9, size * 0.58, -size * 1.7),
+        new THREE.Vector3(0, 0, -size * 0.48), new THREE.Vector3(-size * 0.9, size * 0.58, -size * 1.7),
+        new THREE.Vector3(-size * 0.9, -size * 0.58, -size * 1.7), new THREE.Vector3(size * 0.9, -size * 0.58, -size * 1.7),
+        new THREE.Vector3(size * 0.9, -size * 0.58, -size * 1.7), new THREE.Vector3(size * 0.9, size * 0.58, -size * 1.7),
+        new THREE.Vector3(size * 0.9, size * 0.58, -size * 1.7), new THREE.Vector3(-size * 0.9, size * 0.58, -size * 1.7),
+        new THREE.Vector3(-size * 0.9, size * 0.58, -size * 1.7), new THREE.Vector3(-size * 0.9, -size * 0.58, -size * 1.7)
+      ]);
+      parent.add(new THREE.LineSegments(frustum, new THREE.LineBasicMaterial({ color: colors.camera, transparent: true, opacity: 0.52 })));
+    }
+
+    function addTagSquare(parent, size) {
+      const tag = new THREE.Group();
+      const plate = new THREE.Mesh(
+        new THREE.PlaneGeometry(size, size),
+        new THREE.MeshStandardMaterial({
+          color: colors.tag,
+          roughness: 0.62,
+          metalness: 0,
+          side: THREE.DoubleSide
+        })
+      );
+      tag.add(plate);
+
+      const borderShape = new THREE.Shape();
+      borderShape.moveTo(-size / 2, -size / 2);
+      borderShape.lineTo(size / 2, -size / 2);
+      borderShape.lineTo(size / 2, size / 2);
+      borderShape.lineTo(-size / 2, size / 2);
+      borderShape.lineTo(-size / 2, -size / 2);
+      const borderPoints = borderShape.getPoints();
+      const borderGeometry = new THREE.BufferGeometry().setFromPoints(borderPoints.map(p => new THREE.Vector3(p.x, p.y, 0.002)));
+      tag.add(new THREE.Line(borderGeometry, new THREE.LineBasicMaterial({ color: 0x151515 })));
+
+      const inner = new THREE.Mesh(
+        new THREE.PlaneGeometry(size * 0.48, size * 0.48),
+        new THREE.MeshBasicMaterial({ color: 0x151515, side: THREE.DoubleSide })
+      );
+      inner.position.z = 0.003;
+      tag.add(inner);
+
+      parent.add(tag);
+    }
+
+    function addLine(start, end, color, opacity) {
+      const geometry = new THREE.BufferGeometry().setFromPoints([start, end]);
+      const material = new THREE.LineDashedMaterial({
+        color,
+        transparent: true,
+        opacity,
+        dashSize: 0.025,
+        gapSize: 0.015
+      });
+      const line = new THREE.Line(geometry, material);
+      line.computeLineDistances();
+      scene.add(line);
+      return line;
+    }
+
+    function makeLabel(text, position, color) {
+      const canvas = document.createElement("canvas");
+      const scale = 3;
+      canvas.width = 256 * scale;
+      canvas.height = 72 * scale;
+      const ctx = canvas.getContext("2d");
+      ctx.scale(scale, scale);
+      ctx.font = "600 24px system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
+      ctx.textBaseline = "middle";
+      const width = Math.ceil(ctx.measureText(text).width + 26);
+      ctx.fillStyle = "rgba(17, 20, 23, 0.78)";
+      roundRect(ctx, 0, 7, Math.min(width, 252), 46, 7);
+      ctx.fill();
+      ctx.fillStyle = color;
+      ctx.fillText(text, 13, 31);
+
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.minFilter = THREE.LinearFilter;
+      const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+      const sprite = new THREE.Sprite(material);
+      sprite.position.copy(position);
+      sprite.scale.set(0.115, 0.032, 1);
+      sprite.renderOrder = 10;
+      return sprite;
+    }
+
+    function roundRect(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.arcTo(x + width, y, x + width, y + height, radius);
+      ctx.arcTo(x + width, y + height, x, y + height, radius);
+      ctx.arcTo(x, y + height, x, y, radius);
+      ctx.arcTo(x, y, x + width, y, radius);
+      ctx.closePath();
+    }
+
+    function setView(name) {
+      const tagPosition = getDisplayedTranslation();
+      const midpoint = tagPosition.clone().multiplyScalar(0.5);
+      const zSide = showRawCvPose ? -1 : 1;
+
+      if (name === "camera") {
+        const direction = tagPosition.clone().normalize();
+        camera.position.copy(direction.multiplyScalar(-0.055));
+        controls.target.copy(tagPosition);
+      } else if (name === "top") {
+        camera.position.copy(midpoint.clone().add(new THREE.Vector3(0, 1.05, 0.001)));
+        controls.target.copy(midpoint);
+      } else {
+        camera.position.copy(midpoint.clone().add(new THREE.Vector3(0.65, 0.48, 0.78 * zSide)));
+        controls.target.copy(midpoint);
+      }
+
+      controls.update();
+      controls.saveState();
+    }
+
+    function resize() {
+      const width = viewport.clientWidth;
+      const height = viewport.clientHeight;
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height, false);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+  </script>
+</body>
+</html>
