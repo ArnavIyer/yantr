@@ -1,0 +1,24 @@
+image_width: 848
+image_height: 800
+camera_name: tf_launch_ns/fisheye1_optical_frame
+camera_matrix:
+  rows: 3
+  cols: 3
+  data: [285.3161926269531, 0.0, 418.3577880859375, 0.0, 285.5188903808594, 404.1482849121094, 0.0, 0.0, 1.0]
+distortion_model: equidistant
+distortion_coefficients:
+  rows: 1
+  cols: 4
+  data: [-0.005562068894505501, 0.03628382086753845, -0.033757928758859634, 0.005005316808819771]
+rectification_matrix:
+  rows: 3
+  cols: 3
+  data: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+projection_matrix:
+  rows: 3
+  cols: 4
+  data: [285.3161926269531, 0.0, 418.3577880859375, 0.0, 0.0, 285.5188903808594, 404.1482849121094, 0.0, 0.0, 0.0, 1.0, 0.0]
+header:
+  frame_id: tf_launch_ns/fisheye1_optical_frame
+  stamp_sec: 1782055635
+  stamp_nanosec: 568679936
