@@ -1,0 +1,74 @@
+<?xml version="1.0"?>
+<robot name="yantr" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <!--
+    Coordinate convention:
+      base_link is centered on the ground plane between the four wheel contact patches.
+      +x is robot-forward, +y is robot-left, +z is up.
+
+    Laser measurement conversion from the top-down description:
+      north of base_link -> +x
+      east of base_link  -> -y
+  -->
+  <xacro:property name="laser_x" value="0.2725"/>
+  <xacro:property name="laser_y" value="-0.2587"/>
+  <xacro:property name="laser_z" value="0.348"/>
+  <xacro:property name="laser_yaw" value="-1.5707963267948966"/>
+  <xacro:property name="camera_x" value="-0.24983559"/>
+  <xacro:property name="camera_y" value="0.02509694"/>
+  <xacro:property name="camera_z" value="1.17471883"/>
+  <xacro:property name="camera_roll" value="-0.02038875"/>
+  <xacro:property name="camera_pitch" value="0.29052212"/>
+  <xacro:property name="camera_yaw" value="-0.03271153"/>
+
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.7 0.5 0.1"/>
+      </geometry>
+      <material name="base_gray">
+        <color rgba="0.25 0.28 0.30 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <joint name="base_laser_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="base_laser"/>
+    <origin xyz="${laser_x} ${laser_y} ${laser_z}" rpy="0 0 ${laser_yaw}"/>
+  </joint>
+
+  <link name="base_laser">
+    <visual>
+      <origin xyz="0 0 0.025" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.04" length="0.05"/>
+      </geometry>
+      <material name="laser_black">
+        <color rgba="0.02 0.02 0.02 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <joint name="base_camera_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="camera_link"/>
+    <origin xyz="${camera_x} ${camera_y} ${camera_z}"
+            rpy="${camera_roll} ${camera_pitch} ${camera_yaw}"/>
+  </joint>
+
+  <link name="camera_link"/>
+
+  <!--
+    TODO: Add t265_link once the T265 pose is recalibrated relative to the new
+    base_link origin. The old slam_bridge t265_x / t265_y values are stale.
+
+    <joint name="t265_joint" type="fixed">
+      <parent link="base_link"/>
+      <child link="t265_link"/>
+      <origin xyz="TODO_X TODO_Y TODO_Z" rpy="TODO_ROLL TODO_PITCH TODO_YAW"/>
+    </joint>
+
+    <link name="t265_link"/>
+  -->
+</robot>

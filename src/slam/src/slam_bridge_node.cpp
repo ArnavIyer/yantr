@@ -37,12 +37,16 @@ public:
     odom_frame_ = declare_parameter<std::string>("odom_frame", "odom");
     base_frame_ = declare_parameter<std::string>("base_frame", "base_link");
     laser_frame_ = declare_parameter<std::string>("laser_frame", "base_laser");
+    publish_laser_tf_ = declare_parameter<bool>("publish_laser_tf", false);
 
     lidar_x_ = declare_parameter<double>("lidar_x", 0.30);
     lidar_y_ = declare_parameter<double>("lidar_y", -0.28);
     lidar_z_ = declare_parameter<double>("lidar_z", 0.18);
     lidar_yaw_ = declare_parameter<double>("lidar_yaw", -kPi / 2.0);
 
+    // TODO: These T265 offsets are stale after moving base_link to the skid-steer
+    // ground-plane center. Recalibrate with the camera / AprilTag setup before
+    // trusting the odom -> base_link transform.
     t265_x_ = declare_parameter<double>("t265_x", 0.34);
     t265_y_ = declare_parameter<double>("t265_y", -0.13);
 
@@ -52,7 +56,9 @@ public:
 
     tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
     static_tf_broadcaster_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
-    publish_static_transform();
+    if (publish_laser_tf_) {
+      publish_static_transform();
+    }
 
     const auto pose_qos = rclcpp::QoS(rclcpp::KeepLast(10)).best_effort();
     const auto scan_qos = rclcpp::QoS(rclcpp::KeepLast(10)).best_effort();
@@ -206,6 +212,7 @@ private:
   double occlude_below_rad_;
   double first_velocity_threshold_;
   bool strict_first_velocity_;
+  bool publish_laser_tf_;
 
   rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr scan_pub_;
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;

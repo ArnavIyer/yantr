@@ -15,12 +15,17 @@ to run lidar:
 ros2 launch ldlidar_stl_ros2 ld19.launch.py
 ```
 
+to run robot description / fixed TFs:
+```
+ros2 launch yantr_description description.launch.py
+```
+
 to run foxglove bridge:
 ```
 ros2 run foxglove_bridge foxglove_bridge
 ```
 
-to run slam bridge (necessary for slam toolbox):
+to run slam bridge (necessary for slam toolbox; publishes odom -> base_link and /scan_filtered):
 ```
 ros2 run slam slam_bridge_node
 ```

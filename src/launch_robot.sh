@@ -91,6 +91,12 @@ echo -e "${YELLOW}Launching nodes...${NC}"
 
 SLAM_PARAMS_FILE="/home/arnav/yantr/src/slam/config/slam_params.yaml"
 
+# Robot description (publishes fixed TFs such as base_link -> base_laser)
+echo -e "  Starting robot description..."
+ros2 launch yantr_description description.launch.py &
+PIDS+=($!)
+sleep 1
+
 # LiDAR (LD19)
 echo -e "  Starting LiDAR..."
 ros2 launch ldlidar_stl_ros2 ld19.launch.py &
@@ -109,9 +115,9 @@ ros2 launch realsense2_camera rs_launch.py enable_pose_jumping:=false &
 PIDS+=($!)
 sleep 1
 
-# SLAM bridge (publishes calibrated base_link->base_laser static TF, odom TF, and /scan_filtered)
+# SLAM bridge (publishes odom TF and /scan_filtered; fixed sensor TFs come from the URDF)
 echo -e "  Starting SLAM bridge..."
-ros2 run slam slam_bridge_node &
+ros2 run slam slam_bridge_node --ros-args -p publish_laser_tf:=false &
 PIDS+=($!)
 sleep 1
 
