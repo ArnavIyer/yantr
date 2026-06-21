@@ -16,7 +16,7 @@ from pupil_apriltags import Detector
 HERE = Path(__file__).resolve().parent
 DEFAULT_IMAGE = HERE / "extracted_2026-06-20_17-21-09.588_EDT.png"
 DEFAULT_INTRINSICS = HERE / "extracted_2026-06-20_17-21-09.588_EDT_camera_intrinsics.yaml"
-TAG_TO_BASE_LINK = np.ndarray(
+TAG_TO_BASE_LINK = np.array(
     [
         [0,0,1,.3175],
         [-1,0,0,.1913],
@@ -111,13 +111,11 @@ def solve_base_to_camera(
     tag_to_camera[0:3, 0:3] = detection.pose_R
     tag_to_camera[0:3, 3] = detection.pose_t.flatten()
     
-    print(tag_to_camera)
-
     camera_to_tag = np.linalg.inv(tag_to_camera)
 
-    camera_to_base_link = TAG_TO_BASE_LINK @ camera_to_tag
+    T_base_camera = TAG_TO_BASE_LINK @ camera_to_tag
 
-    return np.linalg.inv(camera_to_base_link)
+    return T_base_camera
 
 
 def parse_args() -> argparse.Namespace:
@@ -134,15 +132,15 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    base_link_to_camera = solve_base_to_camera(
+    T_base_camera = solve_base_to_camera(
         image_path=args.image,
         intrinsics_path=args.intrinsics,
         tag_size_m=args.tag_size_m,
         tag_family=args.tag_family,
         expected_tag_id=args.tag_id,
     )
-
-    print(base_link_to_camera)
+    print("T_base_camera")
+    print(T_base_camera)
 
 
 if __name__ == "__main__":
